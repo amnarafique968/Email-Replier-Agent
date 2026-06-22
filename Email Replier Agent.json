@@ -1,0 +1,320 @@
+{
+  "name": "Email Replier Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {
+          "readStatus": "unread"
+        },
+        "options": {}
+      },
+      "id": "c466784d-08c1-4994-9696-f6c22f9f11f0",
+      "name": "New Email Received",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        256
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "9BiFm6ORN61ejdIz",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "inputText": "=Subject: {{ $json.subject }}\nFrom: {{ $json.from.text }}\nBody: {{ $json.text }}",
+        "categories": {
+          "categories": [
+            {
+              "category": "customer",
+              "description": "Email is from a customer about an order, product, billing, support issue, account, or service question."
+            },
+            {
+              "category": "not_customer",
+              "description": "Email is not customer related, e.g. newsletters, spam, internal/colleague emails, sales pitches, notifications."
+            }
+          ]
+        },
+        "options": {
+          "enableAutoFixing": true
+        }
+      },
+      "id": "b1776f69-448c-4456-ad95-a4c284adcdbd",
+      "name": "Classify Email",
+      "type": "@n8n/n8n-nodes-langchain.textClassifier",
+      "typeVersion": 1.1,
+      "position": [
+        224,
+        256
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "58352b09-f4d2-49d0-8dc9-907fa4e25290",
+      "name": "Classifier Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        304,
+        480
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "tvvs4P5SFPw3ctCx",
+          "name": "n8n free OpenAI API credits"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('New Email Received').item.json.text }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=You are a friendly, professional customer support agent. Write a concise, helpful reply to the customer email below. Sign off as \"The Support Team\". Subject: {{ $(\"New Email Received\").item.json.subject }}. From: {{ $(\"New Email Received\").item.json.from.text }}."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "id": "57de94a6-a2df-478d-b9a6-c5fb1f69f1b4",
+      "name": "Generate Reply",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        576,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "id": "a0cd853d-9244-4e20-8d97-8bb76392a7b9",
+      "name": "Reply Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        656,
+        224
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "tvvs4P5SFPw3ctCx",
+          "name": "n8n free OpenAI API credits"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "reply",
+        "messageId": "={{ $('New Email Received').item.json.id }}",
+        "emailType": "text",
+        "message": "={{ $json.text }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "0389b564-3623-404d-985b-66930468700d",
+      "name": "Send Reply",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        928,
+        112
+      ],
+      "webhookId": "745ac213-a2f2-45cf-8c63-49fc576308aa",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "9BiFm6ORN61ejdIz",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $('New Email Received').item.json.id }}",
+        "labelIds": [
+          "IMPORTANT"
+        ]
+      },
+      "id": "c6e2ad88-d167-4280-9545-d611894b80f8",
+      "name": "Label as Customer",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1152,
+        112
+      ],
+      "webhookId": "3cd0e50a-423c-4f22-b513-e4781b86aa8f",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "9BiFm6ORN61ejdIz",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $('New Email Received').item.json.id }}",
+        "labelIds": [
+          "SPAM"
+        ]
+      },
+      "id": "f0ec08ae-e81c-44ea-850f-bf7b3c8de19f",
+      "name": "Label as Not Customer",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        640,
+        400
+      ],
+      "webhookId": "bd568f02-f3f2-4252-ba57-20828075f8fe",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "9BiFm6ORN61ejdIz",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Email Replier Agent\n1. Gmail Trigger polls unread emails\n2. Text Classifier (AI) decides customer vs not_customer\n3. Customer -> Generate AI reply -> Send reply -> Label as IMPORTANT\n4. Not customer -> Label as SPAM\n\nNote: Using built-in Gmail labels (IMPORTANT/SPAM). You can change these to custom labels after creating them in Gmail.",
+        "height": 200,
+        "width": 300
+      },
+      "id": "8c413bb7-ffc9-41f4-b73c-238ccf6cae88",
+      "name": "Sticky Note 59ea11f4",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -48,
+        -48
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "New Email Received": {
+      "main": [
+        [
+          {
+            "node": "Classify Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Email": {
+      "main": [
+        [
+          {
+            "node": "Generate Reply",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Label as Not Customer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classifier Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Classify Email",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Reply": {
+      "main": [
+        [
+          {
+            "node": "Send Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generate Reply",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Reply": {
+      "main": [
+        [
+          {
+            "node": "Label as Customer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "versionId": "f065b69b-1afa-4101-9704-b87ea499e57b",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "templateCredsSetupCompleted": true,
+    "instanceId": "8d8c190716f5f6122b0bc4f63ab68420368c61642b7f47c0694e1a85bd5da2cc"
+  },
+  "nodeGroups": [],
+  "id": "ASC1FYy3vgeXkr0i",
+  "tags": []
+}
